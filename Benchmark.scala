@@ -17,13 +17,28 @@ import org.apache.spark.util.IntParam
  *   <batchMillise> is the Spark Streaming batch duration in milliseconds.
  */
 object Benchmark {
+
+  def fib2( n : BigInt ) : BigInt = {
+    var a = 0
+    var b = 1
+    var i = 0
+
+    while( i < n ) {
+      val c = a + b
+      a = b
+      b = c
+      i = i + 1
+    }
+    return a
+  }
+
   def main(args: Array[String]) {
-    if (args.length != 4) {
-      System.err.println("Usage: RawNetworkGrep <numStreams> <host> <port> <batchMillis>")
+    if (args.length != 5) {
+      System.err.println("Usage: RawNetworkGrep <numStreams> <host> <port> <batchMillis> <cores>")
       System.exit(1)
     }
 
-    val (numStreams, host, port, batchMillis) = (args(0).toInt, args(1), args(2).toInt, args(3).toInt)
+    val (numStreams, host, port, batchMillis, cores) = (args(0).toInt, args(1), args(2).toInt, args(3).toInt, args(4))
     val sparkConf = new SparkConf()
     sparkConf.setAppName("BenchMark")
     sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
@@ -32,6 +47,7 @@ object Benchmark {
       // Master not set, as this was not launched through Spark-submit. Setting master as local."
       sparkConf.setMaster("local[*]")
     }
+    sparkConf.set("spark.cores.max", cores)
 
     // Create the context
     val ssc = new StreamingContext(sparkConf, Duration(batchMillis))
@@ -40,6 +56,14 @@ object Benchmark {
       ssc.rawSocketStream[String](host, port, StorageLevel.MEMORY_ONLY_SER)).toArray
     val union = ssc.union(rawStreams)
     union.count().map(c => s"Received $c records").print()
+//    union.map(_.toCharArray.foreach(chr => fib2(BigInt(chr.toInt).pow(2)))).foreachRDD(rdd => {
+//      val startTick = System.currentTimeMillis()
+//      rdd.take(1)
+//      val timeDiff = System.currentTimeMillis() - startTick
+//      println("Time taken: %d".format(timeDiff))
+//    })
+
+
     ssc.start()
     ssc.awaitTermination()
   }
