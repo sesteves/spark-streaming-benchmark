@@ -3,6 +3,8 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming._
 import org.apache.spark.util.IntParam
 
+import scala.util.Random
+
 /**
  * Receives text from multiple rawNetworkStreams and counts how many '\n' delimited
  * lines have the word 'the' in them. This is useful for benchmarking purposes. This
@@ -33,13 +35,14 @@ object Benchmark {
   }
 
   def main(args: Array[String]) {
-    if (args.length != 5) {
-      System.err.println("Usage: RawNetworkGrep <numStreams> <host> <port> <batchMillis> <cores>")
+    if (args.length != 6) {
+      System.err.println("Usage: RawNetworkGrep <numStreams> <host> <port> <batchMillis> <cores> <filter>")
       System.exit(1)
     }
 
-    val (numStreams, host, port, batchMillis, cores) = (args(0).toInt, args(1), args(2).toInt, args(3).toInt, args(4))
+    val (numStreams, host, port, batchMillis, cores, filter) = (args(0).toInt, args(1), args(2).toInt, args(3).toInt, args(4), args(5))
     val sparkConf = new SparkConf()
+    // sparkConf.setMaster("spark://ginja-A1:7077")
     sparkConf.setAppName("BenchMark")
     sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     sparkConf.set("spark.executor.extraJavaOptions", " -XX:+UseCompressedOops -XX:+UseConcMarkSweepGC -XX:+AggressiveOpts -XX:FreqInlineSize=300 -XX:MaxInlineSize=300 ")
@@ -55,12 +58,22 @@ object Benchmark {
     val rawStreams = (1 to numStreams).map(_ =>
       ssc.rawSocketStream[String](host, port, StorageLevel.MEMORY_ONLY_SER)).toArray
     val union = ssc.union(rawStreams)
-    union.count().map(c => s"Received $c records").print()
-//    union.map(_.toCharArray.foreach(chr => fib2(BigInt(chr.toInt).pow(2)))).foreachRDD(rdd => {
+    // union.count().map(c => s"Received $c records").print()
+
+
+    union.repartition(cores.toInt).filter(line => Random.nextInt(filter.toInt) == 0).map(line => {
+      var sum = BigInt(0)
+      line.toCharArray.foreach(chr => sum += fib2(BigInt(chr.toInt).pow(1)))
+      sum
+    }).reduceByWindow(_+_, Seconds(1),Seconds(1)).map(s => s"### result: $s").print()
+
+//      .foreachRDD(rdd => {
 //      val startTick = System.currentTimeMillis()
-//      rdd.take(1)
+//      val result = rdd.take(1)
 //      val timeDiff = System.currentTimeMillis() - startTick
-//      println("Time taken: %d".format(timeDiff))
+//
+//      println("### Result array size: " + result.size)
+//      println("### Time taken: %d".format(timeDiff))
 //    })
 
 
