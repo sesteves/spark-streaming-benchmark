@@ -63,7 +63,7 @@ object Benchmark {
 
     union.repartition(cores.toInt).filter(line => Random.nextInt(filter.toInt) == 0).map(line => {
       var sum = BigInt(0)
-      line.toCharArray.foreach(chr => sum += fib2(BigInt(chr.toInt).pow(1)))
+      line.toCharArray.foreach(chr => sum += chr.toInt)  // fib2(BigInt(chr.toInt).pow(1))
       sum
     }).reduceByWindow(_+_, Seconds(1),Seconds(1)).map(s => s"### result: $s").print()
 
