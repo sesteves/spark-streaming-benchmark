@@ -2,6 +2,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming._
 import org.apache.spark.util.IntParam
+import org.apache.spark.mllib.regression.StreamingLinearRegressionWithSGD
 
 import scala.util.Random
 
@@ -42,10 +43,12 @@ object Benchmark {
 
     val (numStreams, host, port, batchMillis, cores, filter) = (args(0).toInt, args(1), args(2).toInt, args(3).toInt, args(4), args(5))
     val sparkConf = new SparkConf()
-    // sparkConf.setMaster("spark://ginja-A1:7077")
+    sparkConf.setMaster("spark://ginja-A1:7077")
     sparkConf.setAppName("BenchMark")
+    sparkConf.setJars(Array("target/scala-2.10/benchmark-app_2.10-0.1-SNAPSHOT.jar"))
     sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-    sparkConf.set("spark.executor.extraJavaOptions", " -XX:+UseCompressedOops -XX:+UseConcMarkSweepGC -XX:+AggressiveOpts -XX:FreqInlineSize=300 -XX:MaxInlineSize=300 ")
+    sparkConf.set("spark.executor.extraJavaOptions", " -XX:+UseCompressedOops -XX:+UseConcMarkSweepGC " +
+      "-XX:+AggressiveOpts -XX:FreqInlineSize=300 -XX:MaxInlineSize=300 ")
     if (sparkConf.getOption("spark.master") == None) {
       // Master not set, as this was not launched through Spark-submit. Setting master as local."
       sparkConf.setMaster("local[*]")
@@ -61,11 +64,22 @@ object Benchmark {
     // union.count().map(c => s"Received $c records").print()
 
 
-    union.repartition(cores.toInt).filter(line => Random.nextInt(filter.toInt) == 0).map(line => {
+
+    // val model = new StreamingLinearRegressionWithSGD()
+    // model.trainOn()
+
+
+    //union.repartition(cores.toInt)
+    union.filter(line => Random.nextInt(filter.toInt) == 0).map(line => {
+
       var sum = BigInt(0)
       line.toCharArray.foreach(chr => sum += chr.toInt)  // fib2(BigInt(chr.toInt).pow(1))
+      fib2(sum)
       sum
     }).reduceByWindow(_+_, Seconds(1),Seconds(1)).map(s => s"### result: $s").print()
+
+
+
 
 //      .foreachRDD(rdd => {
 //      val startTick = System.currentTimeMillis()
@@ -75,6 +89,12 @@ object Benchmark {
 //      println("### Result array size: " + result.size)
 //      println("### Time taken: %d".format(timeDiff))
 //    })
+
+
+
+
+
+
 
 
     ssc.start()
