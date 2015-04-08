@@ -61,7 +61,7 @@ object Benchmark {
     val rawStreams = (1 to numStreams).map(_ =>
       ssc.rawSocketStream[String](host, port, StorageLevel.MEMORY_ONLY_SER)).toArray
     val union = ssc.union(rawStreams)
-    // union.count().map(c => s"Received $c records").print()
+    // union.count().map(c => s"### Received $c records").print()
 
 
 
@@ -71,12 +71,16 @@ object Benchmark {
 
     //union.repartition(cores.toInt)
     union.filter(line => Random.nextInt(filter.toInt) == 0).map(line => {
+      println(s"### line: $line")
 
       var sum = BigInt(0)
-      line.toCharArray.foreach(chr => sum += chr.toInt)  // fib2(BigInt(chr.toInt).pow(1))
-      fib2(sum)
+      //val startTick = System.currentTimeMillis()
+      line.toCharArray.foreach(chr => sum += chr.toInt) // fib2(BigInt(chr.toInt).pow(2)))
+      //val timeDiff = System.currentTimeMillis() - startTick
+      //println("### Time taken: %d".format(timeDiff))
+      fib2(sum * 2)
       sum
-    }).reduceByWindow(_+_, Seconds(1),Seconds(1)).map(s => s"### result: $s").print()
+    }).reduceByWindow(_+_, Seconds(5),Seconds(5)).map(s => s"### result: $s").print()
 
 
 
