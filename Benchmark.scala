@@ -36,12 +36,13 @@ object Benchmark {
   }
 
   def main(args: Array[String]) {
-    if (args.length != 6) {
-      System.err.println("Usage: RawNetworkGrep <numStreams> <host> <port> <batchMillis> <cores> <filter>")
+    if (args.length != 8) {
+      System.err.println("Usage: RawNetworkGrep <numStreams> <host> <port> <batchMillis> <cores> <filter> <operation> <windowSec>")
       System.exit(1)
     }
 
-    val (numStreams, host, port, batchMillis, cores, filter) = (args(0).toInt, args(1), args(2).toInt, args(3).toInt, args(4), args(5))
+    val (numStreams, host, port, batchMillis, cores, filter, operation, windowSec) =
+      (args(0).toInt, args(1), args(2).toInt, args(3).toInt, args(4), args(5), args(6), args(7))
     val sparkConf = new SparkConf()
     sparkConf.setMaster("spark://ginja-A1:7077")
     sparkConf.setAppName("BenchMark")
@@ -63,27 +64,55 @@ object Benchmark {
     val union = ssc.union(rawStreams)
     // union.count().map(c => s"### Received $c records").print()
 
-
+    val words = union.filter(_.length > 3).filter((word) => Random.nextInt(filter.toInt) == 0)
 
     // val model = new StreamingLinearRegressionWithSGD()
     // model.trainOn()
 
 
-    //union.repartition(cores.toInt)
-    union.filter(line => Random.nextInt(filter.toInt) == 0).map(line => {
-      println(s"### line: $line")
-
-      var sum = BigInt(0)
-      //val startTick = System.currentTimeMillis()
-      line.toCharArray.foreach(chr => sum += chr.toInt) // fib2(BigInt(chr.toInt).pow(2)))
-      //val timeDiff = System.currentTimeMillis() - startTick
-      //println("### Time taken: %d".format(timeDiff))
-      fib2(sum * 2)
-      sum
-    }).reduceByWindow(_+_, Seconds(5),Seconds(5)).map(s => s"### result: $s").print()
-
+//    union.filter(line => Random.nextInt(filter.toInt) == 0).map(line => {
+//      println(s"### line: $line")
+//
+//      var sum = BigInt(0)
+//      //val startTick = System.currentTimeMillis()
+//      line.toCharArray.foreach(chr => sum += chr.toInt) // fib2(BigInt(chr.toInt).pow(2)))
+//      //val timeDiff = System.currentTimeMillis() - startTick
+//      //println("### Time taken: %d".format(timeDiff))
+//      fib2(sum * 2)
+//      sum
+//    }).reduceByWindow(_+_, Seconds(5),Seconds(5)).map(s => s"### result: $s").print()
 
 
+    if("stdev".equals(operation)) {
+
+      val wordCharValues = words.map(word => {
+        var sum = 0
+        word.toCharArray.foreach(c => {sum += c.toInt; }) // fib2(c.toInt)
+        val value = sum.toDouble / word.length.toDouble
+        val average = 1892.162961
+
+
+        (math.pow(value - average, 2), 1)
+      })
+        .reduceByWindow({ case ((sum1, count1), (sum2, count2)) => (sum1 + sum2, count1 + count2)},
+          Seconds(windowSec.toInt), Seconds(windowSec.toInt))
+
+      wordCharValues.foreachRDD(rdd => {
+        val startTick = System.currentTimeMillis()
+        val result = rdd.take(1)
+        val timeDiff = System.currentTimeMillis() - startTick
+
+        val topList = rdd.take(10)
+
+        println("### Result array size: " + result.size)
+        if(result.size > 0)
+          println("### STDEV: %f".format(math.sqrt(result(0)._1.toDouble / result(0)._2.toDouble)))
+
+        topList.foreach(println)
+        println("### Time taken: %d".format(timeDiff))
+      })
+
+    }
 
 //      .foreachRDD(rdd => {
 //      val startTick = System.currentTimeMillis()
