@@ -21,19 +21,19 @@ import scala.util.Random
  */
 object Benchmark {
 
-  def fib2( n : BigInt ) : BigInt = {
-    var a = 0
-    var b = 1
-    var i = 0
-
-    while( i < n ) {
-      val c = a + b
-      a = b
-      b = c
-      i = i + 1
-    }
-    return a
-  }
+//  def fib2( n : BigInt ) : BigInt = {
+//    var a = 0
+//    var b = 1
+//    var i = 0
+//
+//    while( i < n ) {
+//      val c = a + b
+//      a = b
+//      b = c
+//      i = i + 1
+//    }
+//    return a
+//  }
 
   def main(args: Array[String]) {
     if (args.length != 8) {
@@ -64,7 +64,7 @@ object Benchmark {
     val union = ssc.union(rawStreams)
     // union.count().map(c => s"### Received $c records").print()
 
-    val words = union.filter(_.length > 3).filter((word) => Random.nextInt(filter.toInt) == 0)
+    val words = union.filter((word) => Random.nextInt(filter.toInt) == 0)
 
     // val model = new StreamingLinearRegressionWithSGD()
     // model.trainOn()
