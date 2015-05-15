@@ -26,7 +26,7 @@ object Ngrams {
     sparkConf.setMaster("spark://ginja-A1:7077")
     sparkConf.setAppName("Ngrams")
     sparkConf.setJars(Array("target/scala-2.10/benchmark-app_2.10-0.1-SNAPSHOT.jar"))
-    sparkConf.set("spark.executor.memory", "2g")
+    sparkConf.set("spark.executor.memory", "4g")
     sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     sparkConf.set("spark.executor.extraJavaOptions", " -XX:+UseCompressedOops -XX:+UseConcMarkSweepGC " +
       "-XX:+AggressiveOpts -XX:FreqInlineSize=300 -XX:MaxInlineSize=300 ")
@@ -44,7 +44,13 @@ object Ngrams {
 
     val lines = union.filter((line) => Random.nextInt(filter.toInt) == 0)
 
-    lines.flatMap(line => line.split(' ').sliding(2).map(_.mkString).toTraversable).map((_, 1))
+    lines.flatMap(line =>
+
+      (1 to 10).foreach(number => line.split(' ').sliding(number).map(_.mkString).toTraversable)
+
+//      line => line.split(' ').sliding(2).map(_.mkString).toTraversable
+
+    ).map((_, 1))
       .reduceByKeyAndWindow(((_: Int) + (_: Int)), Seconds(windowSec.toInt), Seconds(windowSec.toInt))
       .foreachRDD(rdd => {
         val topList = rdd.take(10)
