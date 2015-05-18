@@ -1,3 +1,5 @@
+enablePlugins(JavaAppPackaging)
+
 name := "benchmark-app"
 
 scalaVersion := "2.10.4"
