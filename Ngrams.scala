@@ -15,13 +15,13 @@ object Ngrams {
 
 
   def main(args: Array[String]): Unit = {
-    if (args.length != 8) {
-      System.err.println("Usage: RawNetworkGrep <numStreams> <host> <port> <batchMillis> <cores> <filter> <operation> <windowSec>")
+    if (args.length != 9) {
+      System.err.println("Usage: RawNetworkGrep <numStreams> <host> <port> <batchMillis> <cores> <filter> <windowSec> <operation> <n>")
       System.exit(1)
     }
 
-    val (numStreams, host, port, batchMillis, cores, filter, operation, windowSec) =
-      (args(0).toInt, args(1), args(2).toInt, args(3).toInt, args(4), args(5), args(6), args(7))
+    val (numStreams, host, port, batchMillis, cores, filter, windowSec, operation, n) =
+      (args(0).toInt, args(1), args(2).toInt, args(3).toInt, args(4), args(5), args(6), args(7), args(8))
     val sparkConf = new SparkConf()
     sparkConf.setMaster("spark://ginja-A1:7077")
     sparkConf.setAppName("Ngrams")
@@ -35,22 +35,19 @@ object Ngrams {
     }
     sparkConf.set("spark.cores.max", cores)
 
-
     val ssc = new StreamingContext(sparkConf, Duration(batchMillis))
-
     val rawStreams = (1 to numStreams).map(_ =>
       ssc.rawSocketStream[String](host, port, StorageLevel.MEMORY_ONLY_SER)).toArray
     val union = ssc.union(rawStreams)
 
-    val lines = union.filter((line) => Random.nextInt(filter.toInt) == 0)
+    val lines = union.filter((line) => Random.nextInt(10) < filter.toInt)
 
-    lines.flatMap(line =>
-
-      (1 to 10).foreach(number => line.split(' ').sliding(number).map(_.mkString).toTraversable)
-
-//      line => line.split(' ').sliding(2).map(_.mkString).toTraversable
-
-    ).map((_, 1))
+    lines.flatMap(line => {
+      val words = line.split(' ')
+      var ngrams = Traversable.empty[String]
+      (2 to n.toInt).foreach(i => ngrams = ngrams ++ words.sliding(i).map(_.mkString(" ")).toTraversable)
+      ngrams
+    }).map((_, 1))
       .reduceByKeyAndWindow(((_: Int) + (_: Int)), Seconds(windowSec.toInt), Seconds(windowSec.toInt))
       .foreachRDD(rdd => {
         val topList = rdd.take(10)
@@ -59,6 +56,5 @@ object Ngrams {
 
     ssc.start()
     ssc.awaitTermination()
-
   }
 }
