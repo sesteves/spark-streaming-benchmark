@@ -23,7 +23,11 @@ object Ngrams {
     val (numStreams, host, port, batchMillis, cores, filter, windowSec, operation, n) =
       (args(0).toInt, args(1), args(2).toInt, args(3).toInt, args(4), args(5), args(6), args(7), args(8))
     val sparkConf = new SparkConf()
-    sparkConf.setMaster("spark://ginja-A1:7077")
+
+    sparkConf.setMaster("yarn-client")
+    sparkConf.set("spark.yarn.am.memory", "512m")
+    sparkConf.set("spark.executor.instances", "2") // The number of executors. Note that this property is incompatible with spark.dynamicAllocation.enabled.
+
     sparkConf.setAppName("Ngrams")
     sparkConf.setJars(Array("target/scala-2.10/benchmark-app_2.10-0.1-SNAPSHOT.jar"))
     sparkConf.set("spark.executor.memory", "4g")
