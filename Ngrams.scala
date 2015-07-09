@@ -30,6 +30,9 @@ object Ngrams {
     sparkConf.set("spark.yarn.am.memory", "512m")
     sparkConf.set("spark.executor.instances", "2") // The number of executors. Note that this property is incompatible with spark.dynamicAllocation.enabled.
 
+    sparkConf.set("spark.akka.heartbeat.interval", "100")
+    //sparkConf.set("akka.remote.transport-failure-detector.acceptable-heartbeat-pause", "10")
+
     sparkConf.setAppName("Ngrams")
     sparkConf.setJars(Array("target/scala-2.10/benchmark-app_2.10-0.1-SNAPSHOT.jar"))
     sparkConf.set("spark.executor.memory", "4g")
