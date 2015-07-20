@@ -20,13 +20,14 @@ import org.apache.spark.util.IntParam
  */
 object DynamicDataGenerator {
   def main(args: Array[String]) {
-    if (args.length != 3) {
-      System.err.println("Usage: RawTextSender <port> <file> <bytesPerSec>")
+    if (args.length != 4) {
+      System.err.println("Usage: RawTextSender <port> <file> <minBytesPerSec> <maxBytesPerSec")
       System.exit(1)
     }
     // Parse the arguments using a pattern match
-    val (port, file, bytesPerSec) = (args(0).toInt, args(1), args(2).toInt)
-    val blockSize = bytesPerSec / 10
+    val (port, file, minBytesPerSec, maxBytesPerSec) = (args(0).toInt, args(1), args(2).toInt, args(3).toInt)
+    val blockSize = maxBytesPerSec / 10
+
     // Repeat the input data multiple times to fill in a buffer
     val lines = Source.fromFile(file).getLines().toArray
     val bufferStream = new ByteArrayOutputStream(blockSize + 1000)
@@ -49,7 +50,7 @@ object DynamicDataGenerator {
     while (true) {
       val socket = serverSocket.accept()
       println("Got a new connection")
-      val out = new RateLimitedOutputStream(socket.getOutputStream, bytesPerSec)
+      val out = new DynamicRateLimitedOutputStream(socket.getOutputStream, minBytesPerSec, maxBytesPerSec)
       try {
         while (true) {
           out.write(countBuf.array)
