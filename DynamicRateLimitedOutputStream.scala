@@ -16,33 +16,45 @@ class DynamicRateLimitedOutputStream(out: OutputStream, minBytesPerSec: Int, max
   private var bytesWrittenSinceSync = 0L
   private var currentBytesPerSec = minBytesPerSec
   private var duration = -1l
-  private var tick = 0l
+  private var lastTick = -1l
+  private var isIncreasing = true
 
   override def write(b: Int) {
+    waitToWrite(1)
+    out.write(b)
+  }
 
-    val lastTick = tick
-    tick = System.currentTimeMillis()
-
+  override def write(bytes: Array[Byte]) {
+    val tick = System.currentTimeMillis()
+    if(lastTick == -1) {
+      lastTick = tick
+    }
     duration += tick - lastTick
-    if(duration > stepDuration) {
+    lastTick = tick
 
-      currentBytesPerSec += stepBytes
+    println(s"duration: $duration")
+
+    if(duration > stepDuration) {
+      println("Duration > stepDuration")
+      if(isIncreasing) {
+        if (currentBytesPerSec + stepBytes > maxBytesPerSec) {
+          currentBytesPerSec = maxBytesPerSec - (currentBytesPerSec + stepBytes - maxBytesPerSec)
+          isIncreasing = false
+        } else {
+          currentBytesPerSec += stepBytes
+        }
+      } else {
+        if(currentBytesPerSec - stepBytes < minBytesPerSec) {
+          currentBytesPerSec = minBytesPerSec + (minBytesPerSec - (currentBytesPerSec - stepBytes))
+          isIncreasing = true
+        } else {
+          currentBytesPerSec -= stepBytes
+        }
+      }
 
       duration = 0
     }
 
-
-
-    val delta = System.currentTimeMillis() - duration
-    duration += delta
-
-    waitToWrite(1)
-    out.write(b)
-
-
-  }
-
-  override def write(bytes: Array[Byte]) {
     write(bytes, 0, bytes.length)
   }
 
