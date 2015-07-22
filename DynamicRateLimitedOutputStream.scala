@@ -32,10 +32,7 @@ class DynamicRateLimitedOutputStream(out: OutputStream, minBytesPerSec: Int, max
     duration += tick - lastTick
     lastTick = tick
 
-    println(s"duration: $duration")
-
     if(duration > stepDuration) {
-      println("Duration > stepDuration")
       if(isIncreasing) {
         if (currentBytesPerSec + stepBytes > maxBytesPerSec) {
           currentBytesPerSec = maxBytesPerSec - (currentBytesPerSec + stepBytes - maxBytesPerSec)
