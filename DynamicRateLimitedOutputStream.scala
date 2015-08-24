@@ -3,8 +3,8 @@ import scala.annotation.tailrec
 import java.io.OutputStream
 import java.util.concurrent.TimeUnit._
 
-class DynamicRateLimitedOutputStream(out: OutputStream, minBytesPerSec: Int, maxBytesPerSec: Int,
-                                     stepBytes: Int, stepDuration: Int)
+class DynamicRateLimitedOutputStream(out: OutputStream, tendency: String, minBytesPerSec: Int, maxBytesPerSec: Int,
+                                     stepDuration: Int)
   extends OutputStream {
 
   require(minBytesPerSec > 0)

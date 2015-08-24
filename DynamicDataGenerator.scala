@@ -20,13 +20,23 @@ import org.apache.spark.util.IntParam
  */
 object DynamicDataGenerator {
   def main(args: Array[String]) {
-    if (args.length != 6) {
-      System.err.println("Usage: RawTextSender <port> <file> <minBytesPerSec> <maxBytesPerSec> <stepBytes> <stepDuration>")
+    if (args.length < 6) {
+      System.err.println("Usage: RawTextSender <port> <file> <tendency> <minBytesPerSec> <maxBytesPerSec> <stepDuration> [<stepBytes>]")
       System.exit(1)
     }
+
     // Parse the arguments using a pattern match
-    val (port, file, minBytesPerSec, maxBytesPerSec, stepBytes, stepDuration) = (args(0).toInt, args(1),
-      args(2).toInt, args(3).toInt, args(4).toInt, args(5).toInt)
+    val (port, file, tendency, minBytesPerSec, maxBytesPerSec, stepDuration) = (args(0).toInt, args(1),
+      args(2), args(3).toInt, args(4).toInt, args(5).toInt)
+
+    if(tendency == "sinusoidal") {
+      val stepBytes = args(6).toInt
+    } else if(tendency == "step") {
+    } else {
+      System.err.println(s"No tendency with name $tendency")
+      System.exit(1)
+    }
+
     val blockSize = maxBytesPerSec / 10
 
     // Repeat the input data multiple times to fill in a buffer
@@ -51,8 +61,15 @@ object DynamicDataGenerator {
     while (true) {
       val socket = serverSocket.accept()
       println("Got a new connection")
-      val out = new DynamicRateLimitedOutputStream(socket.getOutputStream, minBytesPerSec, maxBytesPerSec,
-        stepBytes, stepDuration)
+      var out = null
+      if(tendency == "sinusoidal") {
+        out = new DynamicRateLimitedOutputStream(socket.getOutputStream, tendency, minBytesPerSec, maxBytesPerSec,
+          stepDuration, stepBytes)
+      } else if(tendency == "step") {
+        out = new DynamicRateLimitedOutputStream(socket.getOutputStream, tendency, minBytesPerSec, maxBytesPerSec,
+          stepDuration)
+      }
+
       try {
         while (true) {
           out.write(countBuf.array)
