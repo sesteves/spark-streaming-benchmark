@@ -29,13 +29,11 @@ object DynamicDataGenerator {
     val (port, file, tendency, minBytesPerSec, maxBytesPerSec, stepDuration) = (args(0).toInt, args(1),
       args(2), args(3).toInt, args(4).toInt, args(5).toInt)
 
-    if(tendency == "sinusoidal") {
-      val stepBytes = args(6).toInt
-    } else if(tendency == "step") {
-    } else {
-      System.err.println(s"No tendency with name $tendency")
+    if(!(tendency match {case "sinusoidal" => true; case "step" => true; case _ => false})) {
+      System.err.println(s"No tendency with name '$tendency'")
       System.exit(1)
     }
+    val stepBytes: Option[Int] = tendency match { case "sinusoidal" => Some(args(6).toInt); case _ => None }
 
     val blockSize = maxBytesPerSec / 10
 
@@ -61,14 +59,10 @@ object DynamicDataGenerator {
     while (true) {
       val socket = serverSocket.accept()
       println("Got a new connection")
-      var out = null
-      if(tendency == "sinusoidal") {
-        out = new DynamicRateLimitedOutputStream(socket.getOutputStream, tendency, minBytesPerSec, maxBytesPerSec,
-          stepDuration, stepBytes)
-      } else if(tendency == "step") {
-        out = new DynamicRateLimitedOutputStream(socket.getOutputStream, tendency, minBytesPerSec, maxBytesPerSec,
-          stepDuration)
-      }
+      val out = tendency match { case "sinusoidal" => new SinusoidalRateLimitedOutputStream(socket.getOutputStream,
+        tendency, minBytesPerSec, maxBytesPerSec, stepDuration, stepBytes.get);
+      case "step" => new StepRateLimitedOutputStream(socket.getOutputStream, tendency, minBytesPerSec, maxBytesPerSec,
+        stepDuration)}
 
       try {
         while (true) {

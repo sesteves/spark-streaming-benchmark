@@ -14,45 +14,12 @@ class DynamicRateLimitedOutputStream(out: OutputStream, tendency: String, minByt
   private val CHUNK_SIZE = 8192
   private var lastSyncTime = System.nanoTime
   private var bytesWrittenSinceSync = 0L
-  private var currentBytesPerSec = minBytesPerSec
-  private var duration = -1l
-  private var lastTick = -1l
-  private var isIncreasing = true
+  protected var currentBytesPerSec = minBytesPerSec
+
 
   override def write(b: Int) {
     waitToWrite(1)
     out.write(b)
-  }
-
-  override def write(bytes: Array[Byte]) {
-    val tick = System.currentTimeMillis()
-    if(lastTick == -1) {
-      lastTick = tick
-    }
-    duration += tick - lastTick
-    lastTick = tick
-
-    if(duration > stepDuration) {
-      if(isIncreasing) {
-        if (currentBytesPerSec + stepBytes > maxBytesPerSec) {
-          currentBytesPerSec = maxBytesPerSec - (currentBytesPerSec + stepBytes - maxBytesPerSec)
-          isIncreasing = false
-        } else {
-          currentBytesPerSec += stepBytes
-        }
-      } else {
-        if(currentBytesPerSec - stepBytes < minBytesPerSec) {
-          currentBytesPerSec = minBytesPerSec + (minBytesPerSec - (currentBytesPerSec - stepBytes))
-          isIncreasing = true
-        } else {
-          currentBytesPerSec -= stepBytes
-        }
-      }
-
-      duration = 0
-    }
-
-    write(bytes, 0, bytes.length)
   }
 
   @tailrec

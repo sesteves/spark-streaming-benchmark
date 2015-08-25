@@ -6,7 +6,11 @@ import java.io.OutputStream
 
 class SinusoidalRateLimitedOutputStream(out: OutputStream, tendency: String, minBytesPerSec: Int, maxBytesPerSec: Int,
                                      stepDuration: Int, stepBytes: Int)
-  extends DynamicRateLimitedOutputStream {
+  extends DynamicRateLimitedOutputStream(out, tendency, minBytesPerSec, maxBytesPerSec, stepDuration) {
+
+  private var duration = -1l
+  private var lastTick = -1l
+  private var isIncreasing = true
 
   override def write(bytes: Array[Byte]) {
     val tick = System.currentTimeMillis()
