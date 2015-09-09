@@ -26,9 +26,9 @@ object Ngrams {
 
     sparkConf.set("spark.art.window.duration", (windowSec.toInt * 1000).toString)
 
-    sparkConf.setMaster("yarn-client")
-    sparkConf.set("spark.yarn.am.memory", "512m")
-    sparkConf.set("spark.executor.instances", "2") // The number of executors. Note that this property is incompatible with spark.dynamicAllocation.enabled.
+//    sparkConf.setMaster("yarn-client")
+//    sparkConf.set("spark.yarn.am.memory", "512m")
+//    sparkConf.set("spark.executor.instances", "2") // The number of executors. Note that this property is incompatible with spark.dynamicAllocation.enabled.
 
     sparkConf.set("spark.akka.heartbeat.interval", "100")
     //sparkConf.set("akka.remote.transport-failure-detector.acceptable-heartbeat-pause", "10")
