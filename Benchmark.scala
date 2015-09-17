@@ -57,9 +57,8 @@ object Benchmark {
 
     if("filter".equals(operation)) {
 
-      val map = HashMap.empty[String,Int]
-
-      val words = union.flatMap(_.split(' ')).foreachRDD()
+      // val map = HashMap.empty[String,Int]
+      // val words = union.flatMap(_.split(' ')).foreachRDD()
 
 
 
