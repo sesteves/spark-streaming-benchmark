@@ -1,7 +1,7 @@
 import org.apache.spark.SparkConf
 import org.apache.spark.streaming.{Duration, StreamingContext}
 
-import scala.collection.immutable.HashMap
+import scala.collection.mutable.HashMap
 
 /**
  * Created by Sergio on 17/09/2015.
@@ -36,18 +36,47 @@ object LinearRoadBenchmark {
     val distFile = ssc.textFileStream(file)
 
 
+    val MaxSegment = 100
     val vehicles = HashMap.empty[Int, Vehicle]
-
+    val segments = HashMap.empty[Int, Segment]
 
     // https://gist.github.com/tpolecat/95c974d72528252874a3
-    val intC = int <~ char(',')
-    val vehicle = (intC |@| intC |@| intC |@| intC |@| intC |@| intC |@| int <~ endOfInput)(Vehicle)
-    vehicle.parseOnly("1,2,3,4,5,6,7")
 
-    distFile.filter(_.startsWith("0"))
+
+
+    distFile.filter(_.startsWith("0")).map(_.split(",").map(_.toInt))
+
+
+    distFile.filter(_.startsWith("0")).map(line => {
+
+      val items = line.split(",").map(_.toInt)
+      val vehicle = Vehicle(items(2), items(3), items(4), items(5), items(6), items(7), items(9))
+      vehicles += (vehicle.carId -> vehicle)
+
+      val absoluteSegment = vehicle.xway * MaxSegment + vehicle.seg
+
+      if(segments.contains(absoluteSegment)) {
+        segments(absoluteSegment).addVehicle(vehicle.speed)
+      } else {
+        segments += (absoluteSegment -> Segment(vehicle.speed, 1, false))
+      }
+
+
+
+    })
+
+
+
 
 
   }
 
   case class Vehicle(carId: Int, speed: Int, xway: Int, lane: Int, dir: Int, seg: Int, pos: Int)
+
+  case class Segment(speedSum: Int, numberOfCars: Int, accident: Boolean) {
+    def addVehicle(speed: Int): Unit = {
+      speedSum += speed
+      numberOfCars += 1
+    }
+  }
 }
