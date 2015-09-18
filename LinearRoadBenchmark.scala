@@ -59,7 +59,7 @@ object LinearRoadBenchmark {
     }).map({ case (segment, averageSpeed, numberOfCars) =>
       // FIXME detect accidents
       val accident = 0
-      numberOfCars * math.pow(MaxSpeed / averageSpeed, 2 * accident + 1)
+      numberOfCars * math.pow(MaxSpeed / averageSpeed, 2 * (accident + 1))
     }).map(congestion => (congestion / 50, 1)).reduceByWindow((a,b) => (a._1 + b._1, a._2 + b._2),
         Seconds(windowSec.toInt), Seconds(windowSec.toInt))
       .foreachRDD(rdd=>{

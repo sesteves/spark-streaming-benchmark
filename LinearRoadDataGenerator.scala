@@ -14,13 +14,23 @@ object LinearRoadDataGenerator {
 
     var count = 0
     var list = ListBuffer.empty[String]
+    var startTimestamp = -1
     while(true) {
       for (line <- Source.fromFile(file).getLines()) {
-        list += line
-        count += 1
-        if(count % 1000 == 0) {
+        val ts = line.substring(2, line.indexOf(',',2)).toInt
+        if(startTimestamp < 0)
+          startTimestamp = ts
+
+        if(ts - startTimestamp <= 30) {
+          list += line
+          count += 1
+        } else {
           queue += ssc.sparkContext.makeRDD(list)
-          list = ListBuffer.empty[String]
+          list = ListBuffer(line)
+          println(s"Emmited reports: $count")
+          println(s"Queue size: ${queue.size}")
+          count = 0
+          startTimestamp = ts
           Thread.sleep(sleepMillis)
         }
       }
