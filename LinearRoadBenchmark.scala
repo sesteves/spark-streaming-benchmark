@@ -1,5 +1,6 @@
 import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
+import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming.StreamingContext._
 import org.apache.spark.streaming.{Seconds, Duration, StreamingContext}
 
@@ -11,12 +12,13 @@ import scala.collection.mutable
 object LinearRoadBenchmark {
 
   def main(args: Array[String]) {
-    if (args.length != 3) {
-      System.err.println("Usage: LinearRoadBenchmark <batchMillis> <windowSec> <file>")
+    if (args.length != 6) {
+      System.err.println("Usage: LinearRoadBenchmark <numStreams> <host> <port> <batchMillis> <windowSec> <file>")
       System.exit(1)
     }
 
-    val (batchMillis, windowSec, file) = (args(0).toInt, args(1).toInt, args(2))
+    val (numStreams, host, port, batchMillis, windowSec, file) =
+      (args(0).toInt, args(1), args(2).toInt, args(3).toInt, args(4).toInt, args(5))
     val sparkConf = new SparkConf()
 
     sparkConf.set("spark.art.window.duration", (windowSec * 1000).toString)
@@ -31,12 +33,15 @@ object LinearRoadBenchmark {
       sparkConf.setMaster("local[*]")
     }
 
-    val queue =  new mutable.SynchronizedQueue[RDD[String]]()
-
+    // val queue =  new mutable.SynchronizedQueue[RDD[String]]()
 
     // Create the context
     val ssc = new StreamingContext(sparkConf, Duration(batchMillis))
-    val stream = ssc.queueStream(queue)
+    // val stream = ssc.queueStream(queue)
+    val rawStreams = (1 to numStreams).map(_ =>
+      ssc.rawSocketStream[String](host, port, StorageLevel.MEMORY_ONLY_SER)).toArray
+    val stream = ssc.union(rawStreams)
+
 
     val MaxSegment = 100
     val MaxSpeed: Double = 100
@@ -98,7 +103,7 @@ object LinearRoadBenchmark {
 
 
     ssc.start
-    LinearRoadDataGenerator(ssc, queue, file, 3000)
+    // LinearRoadDataGeneratorQueue(ssc, queue, file, 3000)
     ssc.awaitTermination
   }
 
