@@ -38,8 +38,11 @@ object LinearRoadBenchmark {
     // Create the context
     val ssc = new StreamingContext(sparkConf, Duration(batchMillis))
     // val stream = ssc.queueStream(queue)
+    // val rawStreams = (1 to numStreams).map(_ =>
+    //  ssc.rawSocketStream[String](host, port, StorageLevel.MEMORY_ONLY_SER)).toArray
+
     val rawStreams = (1 to numStreams).map(_ =>
-      ssc.rawSocketStream[String](host, port, StorageLevel.MEMORY_ONLY_SER)).toArray
+      ssc.socketTextStream(host, port, StorageLevel.MEMORY_ONLY_SER)).toArray
     val stream = ssc.union(rawStreams)
 
 

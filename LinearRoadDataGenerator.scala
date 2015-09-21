@@ -24,16 +24,11 @@ object LinearRoadDataGenerator {
     println("Listening on port " + port)
 
 
-    val ser = new KryoSerializer(new SparkConf()).newInstance()
-
     while (true) {
       val socket = serverSocket.accept()
       println("Got a new connection")
 
-      val buffer = new ByteArrayOutputStream()
-      //val buffer = new PrintWriter(socket.getOutputStream)
-      val serStream = ser.serializeStream(buffer)
-      val out = socket.getOutputStream
+      val out = new PrintWriter(socket.getOutputStream)
       try {
         var count = 0
         var startTimestamp = -1
@@ -43,9 +38,7 @@ object LinearRoadDataGenerator {
             startTimestamp = ts
 
           if(ts - startTimestamp <= 30) {
-            serStream.writeObject(line)
-            // out.write(line)
-            out.write(buffer.toByteArray)
+            out.println(line)
             count += 1
           } else {
             println(s"Emmited reports: $count")
@@ -55,13 +48,12 @@ object LinearRoadDataGenerator {
             Thread.sleep(sleepMillis)
           }
         }
+        println("Input file have been totally consumed.")
       } catch {
         case e: IOException =>
           println("Client disconnected")
           socket.close()
       }
     }
-
-}
-
+  }
 }
