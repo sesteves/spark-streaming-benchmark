@@ -13,16 +13,17 @@ import scala.io.Source
 object LinearRoadDataGenerator {
 
   def main(args: Array[String]) {
-    if (args.length != 3) {
-      System.err.println("Usage: RawTextSender <port> <file> <sleepMillis>")
+    if (args.length != 4) {
+      System.err.println("Usage: RawTextSender <port> <file> <l-factor> <sleepMillis>")
       System.exit(1)
     }
     // Parse the arguments using a pattern match
-    val (port, file, sleepMillis) = (args(0).toInt, args(1), args(2).toInt)
+    val (port, file, lFactor, sleepMillis) = (args(0).toInt, args(1), args(2).toInt, args(3).toInt)
 
     val serverSocket = new ServerSocket(port)
     println("Listening on port " + port)
 
+    val lines = Source.fromFile(file).getLines().toArray
 
     while (true) {
       val socket = serverSocket.accept()
@@ -32,13 +33,19 @@ object LinearRoadDataGenerator {
       try {
         var count = 0
         var startTimestamp = -1
-        for (line <- Source.fromFile(file).getLines()) {
+        // for (line <- Source.fromFile(file).getLines()) {
+        for(line <- lines) {
           val ts = line.substring(2, line.indexOf(',',2)).toInt
           if(startTimestamp < 0)
             startTimestamp = ts
 
           if(ts - startTimestamp <= 30) {
             out.println(line)
+            for(xway <- 2 to lFactor) {
+              val newLine = line.replaceFirst("(^-?[0-9]+,-?[0-9]+,-?[0-9]+,-?[0-9]+,)-?[0-9]+(,.*)",
+                "$1" + xway + "$2")
+              out.println(newLine)
+            }
             count += 1
           } else {
             println(s"Emmited reports: $count")

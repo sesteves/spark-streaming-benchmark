@@ -55,7 +55,7 @@ object LinearRoadBenchmark {
     // val congestion = numberOfCars * Math.pow(MAX_SPEED / avgSpeed, 2 * (accident + 1));
 
 
-    stream.filter(_.startsWith("0")).map(line => {
+    stream.flatMap(_.split(' ')).filter(_.startsWith("0")).map(line => {
       val items = line.split(",").map(_.toInt)
       (items(1), items(2), items(3), items(4), items(5), items(6), items(7), items(8))
     }).map({ case (time, carId, speed, xway, lane, dir, seg, pos) =>
