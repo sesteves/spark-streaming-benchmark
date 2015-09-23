@@ -24,6 +24,7 @@ object LinearRoadDataGenerator {
     println("Listening on port " + port)
 
     val lines = Source.fromFile(file).getLines().toArray
+    val bigLine = new StringBuilder
 
     while (true) {
       val socket = serverSocket.accept()
@@ -40,17 +41,17 @@ object LinearRoadDataGenerator {
             startTimestamp = ts
 
           if(ts - startTimestamp <= 30) {
-            out.println(line)
-            for(xway <- 2 to lFactor) {
-              val newLine = line.replaceFirst("(^-?[0-9]+,-?[0-9]+,-?[0-9]+,-?[0-9]+,)-?[0-9]+(,.*)",
-                "$1" + xway + "$2")
-              out.println(newLine)
+            for(xway <- 1 to lFactor) {
+              val newLine = line.replaceFirst("(^-?[0-9]+,-?[0-9]+,)(-?[0-9]+)(,-?[0-9]+,)-?[0-9]+(,.*)",
+                "$1" + "$2" + "%03d".format(xway) + "$3" + xway + "$4")
+              bigLine.append(newLine + " ")
             }
             count += 1
           } else {
             println(s"Emmited reports: $count")
             count = 0
-            out.flush()
+            out.println(bigLine.toString)
+            bigLine.clear
             startTimestamp = ts
             Thread.sleep(sleepMillis)
           }

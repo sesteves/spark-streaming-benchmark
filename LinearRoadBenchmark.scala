@@ -35,11 +35,9 @@ object LinearRoadBenchmark {
 
     // val queue =  new mutable.SynchronizedQueue[RDD[String]]()
 
-    // Create the context
+    // The batch interval for this workload should be 5 seconds
     val ssc = new StreamingContext(sparkConf, Duration(batchMillis))
     // val stream = ssc.queueStream(queue)
-    // val rawStreams = (1 to numStreams).map(_ =>
-    //  ssc.rawSocketStream[String](host, port, StorageLevel.MEMORY_ONLY_SER)).toArray
 
     val carPosFreq = ssc.sparkContext.accumulableCollection(mutable.HashMap.empty[Int, ((Int, Int, Int, Int),Int)])
 
@@ -61,28 +59,31 @@ object LinearRoadBenchmark {
       (items(1), items(2), items(3), items(4), items(5), items(6), items(7), items(8))
     })
 
-    val accidents = vehicleReports.filter({ case (time, carId, speed, xway, lane, dir, seg, pos) =>
+    val accidents = vehicleReports.map({ case (time, carId, speed, xway, lane, dir, seg, pos) =>
       val absoluteSegment = xway * MaxSegment + seg
       val location = (absoluteSegment, lane, dir, pos)
 
-      // check if car is stopped
-      val previous = carPosFreq.value.get(carId).getOrElse((location, 0))
-      if (previous._1 == location) {
-        if (previous._2 == 3) {
-          true
+      val isCarStopped = {
+        // check if car is stopped
+        val previous = carPosFreq.localValue.get(carId).getOrElse((location, 0))
+        println("CarId: " + carId + "Previous location: " + previous._1 + ", freq: " + previous._2)
+        if (previous._1 == location) {
+          if (previous._2 == 3) {
+            true
+          } else {
+            carPosFreq += (carId ->(location, previous._2 + 1))
+            false
+          }
         } else {
-          carPosFreq += (carId ->(location, previous._2 + 1))
+          carPosFreq += (carId ->(location, 1))
           false
         }
-      } else {
-        carPosFreq += (carId ->(location, 1))
-        false
       }
-    }).map({ case (time, carId, speed, xway, lane, dir, seg, pos) =>
-      val absoluteSegment = xway * MaxSegment + seg
-      val location = (absoluteSegment, lane, dir, pos)
-      (location, 1)
-    }).reduceByKey(_ + _).filter(_._2 > 1)
+      println("Is car stopped: " + isCarStopped)
+      (location, if(isCarStopped) 1 else 0)
+    }).reduceByKey(_ + _).map({case (location, stoppedCars) =>
+      (location._1, if(stoppedCars > 1) 1 else 0)
+    }).reduceByKey((a,b) => if(a == 1 || b == 1) 1 else 0)
 
 
     val averageSpeedAndNoOfCars = vehicleReports.map({ case (time, carId, speed, xway, lane, dir, seg, pos) =>
@@ -90,20 +91,15 @@ object LinearRoadBenchmark {
       (absoluteSegment, (speed, 1))
     }).reduceByKey((a,b) => (a._1 + b._1, a._2 + b._2))
       .map({ case (segment, (speedSum, numberOfCars )) =>
-      (segment, speedSum.toDouble / numberOfCars.toDouble, numberOfCars)
+      (segment, (speedSum.toDouble / numberOfCars.toDouble, numberOfCars))
     })
 
 
-
-      averageSpeedAndNoOfCars
-
-
-
-      .map({ case (segment, averageSpeed, numberOfCars) =>
-      // FIXME detect accidents
-      val accident = 0
-      numberOfCars * math.pow(MaxSpeed / averageSpeed, 2 * (accident + 1))
-    }).map(congestion => (congestion / 50, 1)).reduceByWindow((a,b) => (a._1 + b._1, a._2 + b._2),
+    averageSpeedAndNoOfCars.join(accidents).map({ case (segment, ((averageSpeed, numberOfCars), accident)) =>
+      println("Accident: " + accident)
+      val congestion = numberOfCars * math.pow(MaxSpeed / averageSpeed, 2 * (accident + 1))
+      (congestion / 50, 1)
+    }).reduceByWindow((a,b) => (a._1 + b._1, a._2 + b._2),
         Seconds(windowSec.toInt), Seconds(windowSec.toInt))
       .foreachRDD(rdd=>{
       val count = rdd.count
@@ -113,9 +109,6 @@ object LinearRoadBenchmark {
         println(s"Average: ${classification._1 / classification._2}")
       }
     })
-
-
-
 
 
 //    distFile.filter(_.startsWith("0")).map(line => {
@@ -145,15 +138,4 @@ object LinearRoadBenchmark {
     ssc.awaitTermination
   }
 
-//  case class Vehicle(carId: Int, speed: Int, xway: Int, lane: Int, dir: Int, seg: Int, pos: Int)
-//
-//  case class Segment(speedSum: Int, numberOfCars: Int, accident: Boolean) {
-//    def addVehicle(speed: Int): Unit = {
-//      speedSum += speed
-//      numberOfCars += 1
-//    }
-//    def getAverageSpeed: Double = {
-//      speedSum.toDouble / numberOfCars.toDouble
-//    }
-//  }
 }
