@@ -41,6 +41,8 @@ object LinearRoadBenchmark {
     // val rawStreams = (1 to numStreams).map(_ =>
     //  ssc.rawSocketStream[String](host, port, StorageLevel.MEMORY_ONLY_SER)).toArray
 
+    val carPosFreq = ssc.sparkContext.accumulableCollection(mutable.HashMap.empty[Int, ((Int, Int, Int, Int),Int)])
+
     val rawStreams = (1 to numStreams).map(_ =>
       ssc.socketTextStream(host, port, StorageLevel.MEMORY_ONLY_SER)).toArray
     val stream = ssc.union(rawStreams)
@@ -54,17 +56,50 @@ object LinearRoadBenchmark {
     // val toll = 2 * Math.pow((numberOfCars - 50), 2);
     // val congestion = numberOfCars * Math.pow(MAX_SPEED / avgSpeed, 2 * (accident + 1));
 
-
-    stream.flatMap(_.split(' ')).filter(_.startsWith("0")).map(line => {
+    val vehicleReports = stream.flatMap(_.split(' ')).filter(_.startsWith("0")).map(line => {
       val items = line.split(",").map(_.toInt)
       (items(1), items(2), items(3), items(4), items(5), items(6), items(7), items(8))
+    })
+
+    val accidents = vehicleReports.filter({ case (time, carId, speed, xway, lane, dir, seg, pos) =>
+      val absoluteSegment = xway * MaxSegment + seg
+      val location = (absoluteSegment, lane, dir, pos)
+
+      // check if car is stopped
+      val previous = carPosFreq.value.get(carId).getOrElse((location, 0))
+      if (previous._1 == location) {
+        if (previous._2 == 3) {
+          true
+        } else {
+          carPosFreq += (carId ->(location, previous._2 + 1))
+          false
+        }
+      } else {
+        carPosFreq += (carId ->(location, 1))
+        false
+      }
     }).map({ case (time, carId, speed, xway, lane, dir, seg, pos) =>
+      val absoluteSegment = xway * MaxSegment + seg
+      val location = (absoluteSegment, lane, dir, pos)
+      (location, 1)
+    }).reduceByKey(_ + _).filter(_._2 > 1)
+
+
+    val averageSpeedAndNoOfCars = vehicleReports.map({ case (time, carId, speed, xway, lane, dir, seg, pos) =>
       val absoluteSegment = xway * MaxSegment + seg
       (absoluteSegment, (speed, 1))
     }).reduceByKey((a,b) => (a._1 + b._1, a._2 + b._2))
       .map({ case (segment, (speedSum, numberOfCars )) =>
       (segment, speedSum.toDouble / numberOfCars.toDouble, numberOfCars)
-    }).map({ case (segment, averageSpeed, numberOfCars) =>
+    })
+
+
+
+      averageSpeedAndNoOfCars
+
+
+
+      .map({ case (segment, averageSpeed, numberOfCars) =>
       // FIXME detect accidents
       val accident = 0
       numberOfCars * math.pow(MaxSpeed / averageSpeed, 2 * (accident + 1))
