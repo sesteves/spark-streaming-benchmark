@@ -1,6 +1,7 @@
 import org.apache.spark.SparkConf
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming._
+import org.apache.spark.streaming.StreamingContext._
 import org.apache.spark.util.IntParam
 import org.apache.spark.mllib.regression.StreamingLinearRegressionWithSGD
 
@@ -23,19 +24,18 @@ import scala.util.Random
 object Benchmark {
 
   def main(args: Array[String]) {
-    if (args.length != 8) {
-      System.err.println("Usage: Benchmark <numStreams> <host> <port> <batchMillis> <cores> <filter> <operation> <windowSec>")
+    if (args.length != 5) {
+      System.err.println("Usage: Benchmark <numStreams> <host> <port> <batchMillis> <operation>")
       System.exit(1)
     }
 
-    val (numStreams, host, port, batchMillis, cores, filter, operation, windowSec) =
-      (args(0).toInt, args(1), args(2).toInt, args(3).toInt, args(4), args(5), args(6), args(7))
+    val (numStreams, host, port, batchMillis, operation) =
+      (args(0).toInt, args(1), args(2).toInt, args(3).toInt, args(4))
     val sparkConf = new SparkConf()
 
-    sparkConf.set("spark.art.window.duration", (windowSec.toInt * 1000).toString)
+    sparkConf.set("spark.art.window.duration", (batchMillis).toString)
     sparkConf.set("spark.akka.heartbeat.interval", "100")
 
-    sparkConf.setMaster("spark://ginja-A1:7077")
     sparkConf.setAppName("Benchmark")
     sparkConf.setJars(Array("target/scala-2.10/benchmark-app_2.10-0.1-SNAPSHOT.jar"))
     sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
@@ -45,37 +45,33 @@ object Benchmark {
       // Master not set, as this was not launched through Spark-submit. Setting master as local."
       sparkConf.setMaster("local[*]")
     }
-    sparkConf.set("spark.cores.max", cores)
 
     // Create the context
     val ssc = new StreamingContext(sparkConf, Duration(batchMillis))
 
     val rawStreams = (1 to numStreams).map(_ =>
       ssc.rawSocketStream[String](host, port, StorageLevel.MEMORY_ONLY_SER)).toArray
-    val union = ssc.union(rawStreams)
+    val stream = ssc.union(rawStreams).flatMap(_.split(' '))
 
 
     if("filter".equals(operation)) {
-
-      // val map = HashMap.empty[String,Int]
-      // val words = union.flatMap(_.split(' ')).foreachRDD()
-
-
-
-
+      stream.filter((_) => Random.nextInt(2) == 0).count().map(c => s"Number of records: $c").print
     }
 
     if("reduce".equals(operation)) {
-
-
-
+      stream.map((_,1)).reduceByKey(_ + _).count().map(c => s"Number of records: $c").print
     }
 
     if("join".equals(operation)) {
-
-
-
+      val s1 = stream.filter((_) => Random.nextInt(2) == 0).map((_,1))
+      val s2 = stream.map((_,1))
+      s1.join(s2).count().map(c => s"Number of records: $c").print
     }
+
+    if("window".equals(operation)) {
+      stream.map((_,1)).reduceByKeyAndWindow(_ + _, Seconds(20)).count().map(c => s"Number of records: $c").print
+    }
+
 
     if("stdev".equals(operation)) {
 
@@ -109,10 +105,7 @@ object Benchmark {
     }
 
 
-
-
     ssc.start()
     ssc.awaitTermination()
   }
 }
-
