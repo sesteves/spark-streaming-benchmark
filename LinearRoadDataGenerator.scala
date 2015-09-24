@@ -41,19 +41,26 @@ object LinearRoadDataGenerator {
             startTimestamp = ts
 
           if(ts - startTimestamp <= 30) {
+            val items = line.split(',')
+            val firstPart = items.take(3).mkString("", ",", ",")
+            val middlePart = "," + items(3) + ","
+            val lastPart = items.drop(5).mkString(",", ",", " ")
+
+//            val lineMask = line.replaceFirst("(^-?[0-9]+,-?[0-9]+,-?[0-9]+)(,-?[0-9]+,)-?[0-9]+(,.*)",
+//              "$1%s$2%s$3 ") // the last space is needed
+
             for(xway <- 1 to lFactor) {
-              val newLine = line.replaceFirst("(^-?[0-9]+,-?[0-9]+,)(-?[0-9]+)(,-?[0-9]+,)-?[0-9]+(,.*)",
-                "$1" + "$2" + "%03d".format(xway) + "$3" + xway + "$4")
-              bigLine.append(newLine + " ")
+//              bigLine.append(lineMask.format("%03d".format(xway), xway))
+              bigLine.append(firstPart + "%03d".format(xway) + middlePart + xway + lastPart)
             }
-            count += 1
+            count += lFactor
           } else {
             println(s"Emmited reports: $count")
             count = 0
             out.println(bigLine.toString)
             bigLine.clear
             startTimestamp = ts
-            Thread.sleep(sleepMillis)
+            // Thread.sleep(sleepMillis)
           }
         }
         println("Input file have been totally consumed.")
