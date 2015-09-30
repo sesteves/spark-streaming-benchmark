@@ -36,7 +36,7 @@ object Benchmark {
     sparkConf.set("spark.art.window.duration", (batchMillis).toString)
     sparkConf.set("spark.akka.heartbeat.interval", "100")
 
-    sparkConf.setAppName("Benchmark")
+    sparkConf.setAppName(operation)
     sparkConf.setJars(Array("target/scala-2.10/benchmark-app_2.10-0.1-SNAPSHOT.jar"))
     sparkConf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     sparkConf.set("spark.executor.extraJavaOptions", " -XX:+UseCompressedOops -XX:+UseConcMarkSweepGC " +
