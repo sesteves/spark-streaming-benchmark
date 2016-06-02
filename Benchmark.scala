@@ -24,13 +24,13 @@ import scala.util.Random
 object Benchmark {
 
   def main(args: Array[String]) {
-    if (args.length != 5) {
-      System.err.println("Usage: Benchmark <numStreams> <host> <port> <batchMillis> <operation>")
+    if (args.length != 6) {
+      System.err.println("Usage: Benchmark <numStreams> <host> <port> <batchMillis> <operation> <duration>")
       System.exit(1)
     }
 
-    val (numStreams, host, port, batchMillis, operation) =
-      (args(0).toInt, args(1), args(2).toInt, args(3).toInt, args(4))
+    val (numStreams, host, port, batchMillis, operation, duration) =
+      (args(0).toInt, args(1), args(2).toInt, args(3).toInt, args(4), args(5).toLong)
     val sparkConf = new SparkConf()
 
     sparkConf.set("spark.art.window.duration", (batchMillis).toString)
@@ -106,6 +106,6 @@ object Benchmark {
 
 
     ssc.start()
-    ssc.awaitTermination()
+    ssc.awaitTermination(duration)
   }
 }
